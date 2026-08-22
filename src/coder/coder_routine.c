@@ -1,29 +1,26 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   coder_routine.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/16 18:09:45 by marmoldo          #+#    #+#             */
+/*   Updated: 2026/08/16 18:09:46 by marmoldo         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../../include/codexion.h"
 
-static int should_stop(t_sim *sim)
+void	*coder_routine(void *arg)
 {
-    int stop;
+	t_coder	*coder;
 
-    pthread_mutex_lock(&sim->stop_lock);
-    stop = sim->stop;
-    pthread_mutex_unlock(&sim->stop_lock);
-    return (stop);
-}
-
-void    *coder_routine(void *arg)
-{
-    t_coder *coder;
-
-    coder = (t_coder *)arg;
-    while (!should_stop(coder->sim))
-    {
-        do_compile(coder);
-        if (should_stop(coder->sim))
-            break ;
-        do_debug(coder);
-        if (should_stop(coder->sim))
-            break ;
-        do_refactor(coder);
-    }
-    return (NULL);
+	coder = (t_coder *)arg;
+	while (!sim_is_stopped(coder->sim))
+	{
+		if (!do_compile(coder) || !do_debug(coder) || !do_refactor(coder))
+			break ;
+	}
+	return (NULL);
 }

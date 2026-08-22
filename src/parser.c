@@ -1,94 +1,85 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   parser.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/16 18:10:56 by marmoldo          #+#    #+#             */
+/*   Updated: 2026/08/16 18:10:57 by marmoldo         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/codexion.h"
 
-
-static int is_valid_number(const char *str)
+static int	parse_number(const char *str, long *out, int allow_zero)
 {
-    int i;
+	long	value;
+	int		digit;
 
-    i = 0;
-    if (!str || !str[0])
-        return (0);
-    while (str[i])
-    {
-        if (str[i] < '0' || str[i] > '9')
-            return (0);
-        i++;
-    }
-    return (1);
+	if (!str || !str[0])
+		return (0);
+	value = 0;
+	while (*str)
+	{
+		if (*str < '0' || *str > '9')
+			return (0);
+		digit = *str - '0';
+		if (value > (LONG_MAX - digit) / 10)
+			return (0);
+		value = value * 10 + digit;
+		str++;
+	}
+	if (!allow_zero && value == 0)
+		return (0);
+	*out = value;
+	return (1);
 }
 
-static long ft_atol(const char *str)
+static int	parse_scheduler(const char *str, int *out)
 {
-    long    result;
-    int     i;
-
-    result = 0;
-    i = 0;
-    while (str[i])
-    {
-        result = result * 10 + (str[i] - '0');
-        i++;
-    }
-    return (result);
+	if (strcmp(str, "fifo") == 0)
+	{
+		*out = SCHED_FIFO_MODE;
+		return (1);
+	}
+	if (strcmp(str, "edf") == 0)
+	{
+		*out = SCHED_EDF_MODE;
+		return (1);
+	}
+	return (0);
 }
 
-static int parse_positive_long(const char *str, long *out)
+static int	print_error(const char *message)
 {
-    if (!is_valid_number(str))
-        return (0);
-    *out = ft_atol(str);
-    if (*out <= 0)
-        return (0);
-    return (1);
+	fprintf(stderr, "Error: %s\n", message);
+	return (0);
 }
 
-
-static int  parse_scheduler(const char *str, int *out)
+int	parse_args(int argc, char **argv, t_args *args)
 {
-    if (strcmp(str, "fifo") == 0)
-    {
-        *out = SCHED_FIFO_MODE;
-        return (1);
-    }
-    if (strcmp(str, "edf") == 0)
-    {
-        *out = SCHED_EDF_MODE;
-        return (1);
-    }
-    return (0);
-}
+	long		tmp;
 
-
-int parse_args(int argc, char **argv, t_args *args)
-{
-    long    tmp;
-    if (argc != 9)
-    {
-        fprintf(stderr, "Error: expected 8 arguments\n");
-        return (0);
-    }
-    if (!parse_positive_long(argv[1], &tmp) || tmp > 2147483647)
-    {
-        fprintf(stderr, "Error: invalid number_of_coders\n");
-        return (0);
-    }
-    args->number_of_coders = (int)tmp;
-    if (!parse_positive_long(argv[2], &args->time_to_burnout))
-        return (fprintf(stderr, "Error: invalid time_to_burnout\n"), 0);
-    if (!parse_positive_long(argv[3], &args->time_to_compile))
-        return (fprintf(stderr, "Error: invalid time_to_compile\n"), 0);
-    if (!parse_positive_long(argv[4], &args->time_to_debug))
-        return (fprintf(stderr, "Error: invalid time_to_debug\n"), 0);
-    if (!parse_positive_long(argv[5], &args->time_to_refactor))
-        return (fprintf(stderr, "Error: invalid time_to_refactor\n"), 0);
-    if (!parse_positive_long(argv[6], &tmp) || tmp > 2147483647)
-        return (fprintf(stderr, "Error: invalid number_of_compiles_required\n"), 0);
-
-    args->number_of_compiles_required = (int)tmp;
-    if (!parse_positive_long(argv[7], &args->dongle_cooldown))
-        return (fprintf(stderr, "Error: invalid dongle_cooldown\n"), 0);
-    if (!parse_scheduler(argv[8], &args->scheduler))
-        return (fprintf(stderr, "Error: scheduler must be 'fifo' or 'edf'\n"), 0);
-    return (1);
-    
+	if (argc != 9)
+		return (print_error("expected 8 arguments"));
+	if (!parse_number(argv[1], &tmp, 0) || tmp > INT_MAX)
+		return (print_error("invalid number_of_coders"));
+	args->number_of_coders = (int)tmp;
+	if (!parse_number(argv[2], &args->time_to_burnout, 1))
+		return (print_error("invalid time_to_burnout"));
+	if (!parse_number(argv[3], &args->time_to_compile, 1))
+		return (print_error("invalid time_to_compile"));
+	if (!parse_number(argv[4], &args->time_to_debug, 1))
+		return (print_error("invalid time_to_debug"));
+	if (!parse_number(argv[5], &args->time_to_refactor, 1))
+		return (print_error("invalid time_to_refactor"));
+	if (!parse_number(argv[6], &tmp, 1) || tmp > INT_MAX)
+		return (print_error("invalid number_of_compiles_required"));
+	args->number_of_compiles_required = (int)tmp;
+	if (!parse_number(argv[7], &args->dongle_cooldown, 1))
+		return (print_error("invalid dongle_cooldown"));
+	if (!parse_scheduler(argv[8], &args->scheduler))
+		return (print_error("scheduler must be 'fifo' or 'edf'"));
+	return (1);
 }

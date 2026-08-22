@@ -1,81 +1,64 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   monitor.c                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/08/16 18:10:06 by marmoldo          #+#    #+#             */
+/*   Updated: 2026/08/16 18:10:07 by marmoldo         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../../include/codexion.h"
 
-static int  check_burnout(t_sim *sim)
+static int	check_burnout(t_sim *sim)
 {
-    int     i;
-    int     n;
-    long    now;
-    long    deadline;
-    long    last_start;
+	int		index;
+	long	last_start;
 
-    n = sim->args.number_of_coders;
-    i = 0;
-    while (i < n)
-    {
-        pthread_mutex_lock(&sim->coders[i].data_lock);
-        last_start = sim->coders[i].last_compile_start;
-        pthread_mutex_unlock(&sim->coders[i].data_lock);
-        now = get_timestamp_ms();
-        deadline = last_start + sim->args.time_to_burnout;
-        if (now >= deadline)
-        {
-            log_action(sim, sim->coders[i].id, "burned out");
-            return (1);
-        }
-        i++;
-    }
-    return (0);
+	index = 0;
+	while (index < sim->args.number_of_coders)
+	{
+		pthread_mutex_lock(&sim->coders[index].data_lock);
+		last_start = sim->coders[index].last_compile_start;
+		pthread_mutex_unlock(&sim->coders[index].data_lock);
+		if (get_timestamp_ms() >= last_start + sim->args.time_to_burnout)
+			return (announce_burnout(sim, sim->coders[index].id), 1);
+		index++;
+	}
+	return (0);
 }
 
-static int  check_all_done(t_sim *sim)
+static int	check_all_done(t_sim *sim)
 {
-    int i;
-    int n;
-    int done;
+	int	index;
 
-    n = sim->args.number_of_coders;
-    i = 0;
-    while (i < n)
-    {
-        pthread_mutex_lock(&sim->coders[i].data_lock);
-        done = sim->coders[i].compiles_done;
-        pthread_mutex_unlock(&sim->coders[i].data_lock);
-        if (done < sim->args.number_of_compiles_required)
-            return (0);
-        i++;
-    }
-    return (1);
+	index = 0;
+	while (index < sim->args.number_of_coders)
+	{
+		pthread_mutex_lock(&sim->coders[index].data_lock);
+		if (sim->coders[index].compiles_done
+			< sim->args.number_of_compiles_required)
+		{
+			pthread_mutex_unlock(&sim->coders[index].data_lock);
+			return (0);
+		}
+		pthread_mutex_unlock(&sim->coders[index++].data_lock);
+	}
+	return (1);
 }
 
-void    *monitor_routine(void *arg)
+void	*monitor_routine(void *arg)
 {
-    t_sim   *sim;
+	t_sim	*sim;
 
-    sim = (t_sim *)arg;
-    while (1)
-    {
-        pthread_mutex_lock(&sim->stop_lock);
-        if (sim->stop)
-        {
-            pthread_mutex_unlock(&sim->stop_lock);
-            break ;
-        }
-        pthread_mutex_unlock(&sim->stop_lock);
-        if (check_burnout(sim))
-        {
-            pthread_mutex_lock(&sim->stop_lock);
-            sim->stop = 1;
-            pthread_mutex_unlock(&sim->stop_lock);
-            break ;
-        }
-        if (check_all_done(sim))
-        {
-            pthread_mutex_lock(&sim->stop_lock);
-            sim->stop = 1;
-            pthread_mutex_unlock(&sim->stop_lock);
-            break ;
-        }
-        usleep(1000);
-    }
-    return (NULL);
+	sim = (t_sim *)arg;
+	while (!sim_is_stopped(sim))
+	{
+		if (check_burnout(sim) || check_all_done(sim))
+			return (stop_simulation(sim), NULL);
+		usleep(1000);
+	}
+	return (NULL);
 }
