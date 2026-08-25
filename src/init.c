@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   init.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
+/*   By: marmoldo <marmoldo@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:10:46 by marmoldo          #+#    #+#             */
-/*   Updated: 2026/08/16 18:10:47 by marmoldo         ###   ########.fr       */
+/*   Updated: 2026/08/25 15:24:28 by marmoldo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,7 @@ static int	init_one_dongle(t_sim *sim, int index)
 	dongle->id = index;
 	dongle->is_taken = 0;
 	dongle->free_since = 0;
+	dongle->next_order = -1;
 	if (pthread_mutex_init(&dongle->lock, NULL) != 0)
 		return (0);
 	if (pthread_cond_init(&dongle->cond, NULL) != 0)
