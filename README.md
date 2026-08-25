@@ -60,6 +60,63 @@ Example:
 ```bash
 ./codexion 3 5000 800 400 400 3 200 fifo
 ```
+## Algorithm Overview
+
+### Coder lifecycle
+
+Each coder runs in its own thread and repeats the same cycle until the
+simulation stops:
+
+1. **Acquire both dongles** — a coder needs its left and right dongle
+   simultaneously to compile. Dongles are always requested in a fixed
+   order (lower `id` first), never "left then right" blindly — this
+   ordering is what prevents the classic circular-wait deadlock.
+2. **Compile** — hold both dongles for `time_to_compile` ms, then release
+   them.
+3. **Debug** — pause for `time_to_debug` ms, no dongles held.
+4. **Refactor** — pause for `time_to_refactor` ms, then immediately try to
+   acquire dongles again.
+
+### Dongle acquisition
+
+When a coder requests a dongle:
+
+- If the dongle is free and no one else is waiting, the coder takes it
+  immediately.
+- Otherwise, the coder registers a request in that dongle's waiting queue
+  (a min-heap) and sleeps on a condition variable.
+- When the dongle is released, the thread that released it pops the next
+  request from the queue and wakes every waiting thread; only the coder
+  matching the popped request proceeds, the rest go back to sleep.
+- Before actually taking the dongle, the coder waits out any remaining
+  `dongle_cooldown` time since the dongle was last released.
+
+### Scheduling policies
+
+Both `fifo` and `edf` reuse the same min-heap; only the priority key
+differs:
+
+- **`fifo`**: the key is the timestamp at which the coder joined the
+  queue — the longest-waiting coder is served first.
+- **`edf`** (Earliest Deadline First): the key is the coder's burnout
+  deadline (`last_compile_start + time_to_burnout`) — the coder closest
+  to burning out is served first, which improves fairness and reduces
+  the chance of avoidable burnouts under contention.
+
+### Burnout detection and simulation end
+
+A dedicated monitor thread polls at short intervals and stops the
+simulation as soon as either condition is met:
+
+- **Burnout**: any coder has gone past its deadline
+  (`last_compile_start + time_to_burnout`) without starting a new
+  compile.
+- **Completion**: every coder has reached `number_of_compiles_required`
+  compiles.
+
+Whichever condition triggers first sets a shared `stop` flag; all coder
+threads check this flag between phases and exit their loop once it is
+set.
 
 ## Resources
 
