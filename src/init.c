@@ -3,7 +3,7 @@
 /*                                                        :::      ::::::::   */
 /*   init.c                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: marmoldo <marmoldo@student.42.fr>          +#+  +:+       +#+        */
+/*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:10:46 by marmoldo          #+#    #+#             */
 /*   Updated: 2026/08/25 15:24:28 by marmoldo         ###   ########.fr       */
@@ -20,15 +20,19 @@ static int	init_one_dongle(t_sim *sim, int index)
 	dongle->id = index;
 	dongle->is_taken = 0;
 	dongle->free_since = 0;
-	dongle->next_order = -1;
+	dongle->next_order = 0;
 	if (pthread_mutex_init(&dongle->lock, NULL) != 0)
 		return (0);
 	if (pthread_cond_init(&dongle->cond, NULL) != 0)
-		return (pthread_mutex_destroy(&dongle->lock), 0);
+	{
+		pthread_mutex_destroy(&dongle->lock);
+		return (0);
+	}
 	if (!heap_init(&dongle->wait_queue, sim->args.number_of_coders))
 	{
 		pthread_cond_destroy(&dongle->cond);
-		return (pthread_mutex_destroy(&dongle->lock), 0);
+		pthread_mutex_destroy(&dongle->lock);
+		return (0);
 	}
 	sim->dongles_initialized++;
 	return (1);
@@ -80,7 +84,8 @@ static int	init_coders(t_sim *sim)
 		if (pthread_mutex_init(&sim->coders[index].data_lock, NULL) != 0)
 			return (0);
 		sim->coders_initialized++;
-		set_coder_dongles(sim, index++);
+		set_coder_dongles(sim, index);
+		index++;
 	}
 	return (1);
 }

@@ -146,7 +146,7 @@ design aid, not as a code-generation shortcut:
   (single coder, burnout scenarios, high-contention scheduling) to
   validate the implementation's correctness.
 
-All code was written, reviewed, and understood by us. AI was not used to
+All code was written, reviewed, and understood by me. AI was not used to
 generate unreviewed code dropped directly into the project.
 
 ## Blocking cases handled
@@ -173,22 +173,22 @@ generate unreviewed code dropped directly into the project.
 - **Log serialization**: all state-change messages go through a single
   logging function protected by a dedicated mutex, ensuring two threads
   can never interleave partial output on the same line.
-- **Single-coder edge case**: when `number_of_coders` is 1, the coder's
-  left and right dongle point to the same object; the acquisition logic
-  detects this and takes it only once, avoiding a self-deadlock on the
-  same mutex.
+- **Single-coder edge case**: when `number_of_coders` is 1, only one dongle
+  is on the table. The single coder acquires this dongle, logs the acquisition,
+  and waits until the burnout deadline triggers, avoiding self-deadlock on the
+  same mutex and cleanly releasing resources on termination.
 
 ## Thread synchronization mechanisms
 
 - **`pthread_mutex_t` per dongle**: protects `is_taken`, `free_since`, and
-  `next_turn_id`. All reads and modifications of a dongle's state happen
+  `wait_queue`. All reads and modifications of a dongle's state happen
   while holding this lock.
 - **`pthread_cond_t` per dongle**: coders waiting for a dongle sleep on
   this condition variable instead of busy-waiting, and are woken via
   `pthread_cond_broadcast` whenever the dongle is released. Each waiting
-  thread re-checks, after waking, whether it is actually its turn
-  (`next_turn_id == coder->id`) before proceeding — this correctly
-  handles spurious wakeups and signals meant for other threads.
+  thread re-checks, after waking, whether it is at the top of the waiting queue
+  and the dongle is free before proceeding — this correctly handles spurious
+  wakeups and signals meant for other threads.
 - **`pthread_mutex_t data_lock` per coder**: protects `last_compile_start`
   and `compiles_done`, which are written by the coder's own thread and
   read by the monitor thread. Without this lock, a data race would occur

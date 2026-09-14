@@ -6,7 +6,7 @@
 /*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:10:56 by marmoldo          #+#    #+#             */
-/*   Updated: 2026/08/16 18:10:57 by marmoldo         ###   ########.fr       */
+/*   Updated: 2026/09/14 15:28:20 by marmoldo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,10 @@ static int	parse_number(const char *str, long *out, int allow_zero)
 	int		digit;
 
 	if (!str || !str[0])
+		return (0);
+	if (*str == '+')
+		str++;
+	if (!*str)
 		return (0);
 	value = 0;
 	while (*str)

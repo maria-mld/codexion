@@ -20,7 +20,23 @@ int	heap_peek(t_heap *h, t_request *out)
 	return (1);
 }
 
-int	heap_is_empty(t_heap *h)
+int	heap_remove(t_heap *h, int coder_id)
 {
-	return (h->size == 0);
+	int	index;
+
+	if (h->size == 0)
+		return (0);
+	index = 0;
+	while (index < h->size && h->data[index].coder_id != coder_id)
+		index++;
+	if (index == h->size)
+		return (0);
+	h->size--;
+	if (index < h->size)
+	{
+		h->data[index] = h->data[h->size];
+		heap_sift_down(h, index);
+		heap_sift_up(h, index);
+	}
+	return (1);
 }

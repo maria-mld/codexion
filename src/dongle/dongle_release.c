@@ -12,7 +12,7 @@
 
 #include "../../include/codexion.h"
 
-static void	release_one(t_dongle *d)
+void	release_one(t_dongle *d)
 {
 	pthread_mutex_lock(&d->lock);
 	d->is_taken = 0;

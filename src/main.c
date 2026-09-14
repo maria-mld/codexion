@@ -6,7 +6,7 @@
 /*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:10:52 by marmoldo          #+#    #+#             */
-/*   Updated: 2026/08/16 18:10:53 by marmoldo         ###   ########.fr       */
+/*   Updated: 2026/09/11 18:44:10 by marmoldo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,10 @@ static void	set_start_times(t_sim *sim)
 	sim->start_time = get_timestamp_ms();
 	index = 0;
 	while (index < sim->args.number_of_coders)
-		sim->coders[index++].last_compile_start = sim->start_time;
+	{
+		sim->coders[index].last_compile_start = sim->start_time;
+		index++;
+	}
 }
 
 static void	join_coders(t_sim *sim, int count)
@@ -28,7 +31,10 @@ static void	join_coders(t_sim *sim, int count)
 
 	index = 0;
 	while (index < count)
-		pthread_join(sim->coders[index++].thread, NULL);
+	{
+		pthread_join(sim->coders[index].thread, NULL);
+		index++;
+	}
 }
 
 static int	start_coders(t_sim *sim)
@@ -53,11 +59,12 @@ static int	start_coders(t_sim *sim)
 static int	start_simulation(t_sim *sim)
 {
 	set_start_times(sim);
-	if (pthread_create(&sim->monitor, NULL, monitor_routine, sim) != 0)
-		return (0);
 	if (!start_coders(sim))
+		return (0);
+	if (pthread_create(&sim->monitor, NULL, monitor_routine, sim) != 0)
 	{
-		pthread_join(sim->monitor, NULL);
+		stop_simulation(sim);
+		join_coders(sim, sim->args.number_of_coders);
 		return (0);
 	}
 	join_coders(sim, sim->args.number_of_coders);
@@ -73,11 +80,15 @@ int	main(int argc, char **argv)
 	if (!parse_args(argc, argv, &args))
 		return (1);
 	if (!init_sim(&sim, &args))
-		return (fprintf(stderr, "Error: initialization failed\n"), 1);
+	{
+		fprintf(stderr, "Error: initialization failed\n");
+		return (1);
+	}
 	if (args.number_of_compiles_required != 0 && !start_simulation(&sim))
 	{
 		cleanup_sim(&sim);
-		return (fprintf(stderr, "Error: pthread_create failed\n"), 1);
+		fprintf(stderr, "Error: pthread_create failed\n");
+		return (1);
 	}
 	cleanup_sim(&sim);
 	return (0);

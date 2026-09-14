@@ -6,7 +6,7 @@
 /*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:09:26 by marmoldo          #+#    #+#             */
-/*   Updated: 2026/08/16 18:17:00 by marmoldo         ###   ########.fr       */
+/*   Updated: 2026/09/14 15:27:26 by marmoldo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,12 +22,14 @@ typedef struct s_request
 	long			key;
 	long			order;
 }	t_request;
+
 typedef struct s_heap
 {
 	t_request		*data;
 	int				size;
 	int				capacity;
 }	t_heap;
+
 typedef struct s_dongle
 {
 	int				id;
@@ -38,6 +40,7 @@ typedef struct s_dongle
 	t_heap			wait_queue;
 	long			next_order;
 }	t_dongle;
+
 typedef struct s_coder
 {
 	int				id;
@@ -49,6 +52,7 @@ typedef struct s_coder
 	pthread_t		thread;
 	struct s_sim	*sim;
 }	t_coder;
+
 typedef struct s_args
 {
 	int			number_of_coders;
@@ -60,6 +64,7 @@ typedef struct s_args
 	long		dongle_cooldown;
 	int			scheduler;
 }	t_args;
+
 typedef struct s_sim
 {
 	t_args			args;

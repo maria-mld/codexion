@@ -24,7 +24,10 @@ static int	check_burnout(t_sim *sim)
 		last_start = sim->coders[index].last_compile_start;
 		pthread_mutex_unlock(&sim->coders[index].data_lock);
 		if (get_timestamp_ms() >= last_start + sim->args.time_to_burnout)
-			return (announce_burnout(sim, sim->coders[index].id), 1);
+		{
+			announce_burnout(sim, sim->coders[index].id);
+			return (1);
+		}
 		index++;
 	}
 	return (0);
@@ -44,7 +47,8 @@ static int	check_all_done(t_sim *sim)
 			pthread_mutex_unlock(&sim->coders[index].data_lock);
 			return (0);
 		}
-		pthread_mutex_unlock(&sim->coders[index++].data_lock);
+		pthread_mutex_unlock(&sim->coders[index].data_lock);
+		index++;
 	}
 	return (1);
 }
@@ -57,7 +61,10 @@ void	*monitor_routine(void *arg)
 	while (!sim_is_stopped(sim))
 	{
 		if (check_burnout(sim) || check_all_done(sim))
-			return (stop_simulation(sim), NULL);
+		{
+			stop_simulation(sim);
+			return (NULL);
+		}
 		usleep(1000);
 	}
 	return (NULL);
