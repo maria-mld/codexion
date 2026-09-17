@@ -6,7 +6,7 @@
 /*   By: marmoldo <marmoldo@student.42prague.com    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/16 18:11:15 by marmoldo          #+#    #+#             */
-/*   Updated: 2026/08/16 18:11:16 by marmoldo         ###   ########.fr       */
+/*   Updated: 2026/09/17 15:39:59 by marmoldo         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,7 @@ int	sleep_interruptible(t_sim *sim, long duration)
 		if (remaining > 1)
 			usleep(1000);
 		else
-			usleep((useconds_t)(remaining * 1000));
+			usleep((unsigned int)(remaining * 1000));
 	}
 	return (0);
 }
