@@ -12,40 +12,66 @@
 
 #include "../../include/codexion.h"
 
-static int	take_one_dongle(t_dongle *dongle, t_coder *coder)
-{
-	long		order;
-	t_request	top;
-
-	pthread_mutex_lock(&dongle->lock);
-	order = dongle->next_order++;
-	if (!heap_push(&dongle->wait_queue, coder->id,
-			dongle_key(coder), order))
-	{
-		pthread_mutex_unlock(&dongle->lock);
-		return (0);
-	}
-	if (!wait_for_dongle(dongle, coder, order))
-	{
-		heap_remove(&dongle->wait_queue, coder->id);
-		pthread_mutex_unlock(&dongle->lock);
-		return (0);
-	}
-	heap_pop(&dongle->wait_queue, &top);
-	dongle->is_taken = 1;
-	pthread_mutex_unlock(&dongle->lock);
-	return (1);
-}
-
 static int	take_single_dongle(t_coder *coder)
 {
-	if (!take_one_dongle(coder->left, coder))
-		return (0);
+	pthread_mutex_lock(&coder->left->lock);
+	coder->left->is_taken = 1;
+	pthread_mutex_unlock(&coder->left->lock);
 	log_action(coder->sim, coder->id, "has taken a dongle");
 	while (!sim_is_stopped(coder->sim))
 		usleep(1000);
 	release_one(coder->left);
 	return (0);
+}
+
+static int	try_take_both(t_coder *c, t_dongle *f, t_dongle *s)
+{
+	long	cd;
+
+	cd = c->sim->args.dongle_cooldown;
+	pthread_mutex_lock(&f->lock);
+	pthread_mutex_lock(&s->lock);
+	if (!f->is_taken && !s->is_taken && !cooldown_active(f, cd)
+		&& !cooldown_active(s, cd) && has_dongle_priority(f, c)
+		&& has_dongle_priority(s, c))
+	{
+		f->is_taken = 1;
+		s->is_taken = 1;
+		heap_remove(&f->wait_queue, c->id);
+		heap_remove(&s->wait_queue, c->id);
+		pthread_mutex_unlock(&s->lock);
+		pthread_mutex_unlock(&f->lock);
+		log_action(c->sim, c->id, "has taken a dongle");
+		log_action(c->sim, c->id, "has taken a dongle");
+		return (1);
+	}
+	pthread_mutex_unlock(&s->lock);
+	pthread_mutex_unlock(&f->lock);
+	return (0);
+}
+
+static void	enqueue_dongles(t_coder *c, t_dongle *f, t_dongle *s)
+{
+	long	order;
+
+	pthread_mutex_lock(&f->lock);
+	order = f->next_order++;
+	heap_push(&f->wait_queue, c->id, dongle_key(c), order);
+	pthread_mutex_unlock(&f->lock);
+	pthread_mutex_lock(&s->lock);
+	order = s->next_order++;
+	heap_push(&s->wait_queue, c->id, dongle_key(c), order);
+	pthread_mutex_unlock(&s->lock);
+}
+
+static void	dequeue_dongles(t_coder *c, t_dongle *f, t_dongle *s)
+{
+	pthread_mutex_lock(&f->lock);
+	heap_remove(&f->wait_queue, c->id);
+	pthread_mutex_unlock(&f->lock);
+	pthread_mutex_lock(&s->lock);
+	heap_remove(&s->wait_queue, c->id);
+	pthread_mutex_unlock(&s->lock);
 }
 
 int	take_dongles(t_coder *coder)
@@ -62,14 +88,13 @@ int	take_dongles(t_coder *coder)
 		first = coder->right;
 		second = coder->left;
 	}
-	if (!take_one_dongle(first, coder))
-		return (0);
-	log_action(coder->sim, coder->id, "has taken a dongle");
-	if (!take_one_dongle(second, coder))
+	enqueue_dongles(coder, first, second);
+	while (!sim_is_stopped(coder->sim))
 	{
-		release_one(first);
-		return (0);
+		if (try_take_both(coder, first, second))
+			return (1);
+		usleep(1000);
 	}
-	log_action(coder->sim, coder->id, "has taken a dongle");
-	return (1);
+	dequeue_dongles(coder, first, second);
+	return (0);
 }

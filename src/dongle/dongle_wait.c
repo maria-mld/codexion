@@ -26,43 +26,22 @@ long	dongle_key(t_coder *coder)
 	return (last_start + coder->sim->args.time_to_burnout);
 }
 
-static int	cooldown_active(t_dongle *dongle, t_coder *coder)
+int	cooldown_active(t_dongle *dongle, long cd)
 {
 	long	elapsed;
 
-	if (dongle->free_since == 0 || coder->sim->args.dongle_cooldown == 0)
+	if (dongle->free_since == 0 || cd == 0)
 		return (0);
 	elapsed = get_timestamp_ms() - dongle->free_since;
-	return (elapsed < coder->sim->args.dongle_cooldown);
+	return (elapsed < cd);
 }
 
-static void	wait_cooldown(t_dongle *dongle, t_coder *coder)
-{
-	struct timespec	deadline;
-	long			target;
-
-	target = dongle->free_since + coder->sim->args.dongle_cooldown;
-	deadline.tv_sec = target / 1000;
-	deadline.tv_nsec = (target % 1000) * 1000000L;
-	pthread_cond_timedwait(&dongle->cond, &dongle->lock, &deadline);
-}
-
-int	wait_for_dongle(t_dongle *dongle, t_coder *coder, long order)
+int	has_dongle_priority(t_dongle *d, t_coder *coder)
 {
 	t_request	top;
 
-	while (!sim_is_stopped(coder->sim))
-	{
-		heap_peek(&dongle->wait_queue, &top);
-		if (!dongle->is_taken && top.order == order)
-		{
-			if (cooldown_active(dongle, coder))
-				wait_cooldown(dongle, coder);
-			else
-				return (1);
-		}
-		else
-			pthread_cond_wait(&dongle->cond, &dongle->lock);
-	}
-	return (0);
+	if (d->wait_queue.size == 0)
+		return (1);
+	heap_peek(&d->wait_queue, &top);
+	return (top.coder_id == coder->id);
 }

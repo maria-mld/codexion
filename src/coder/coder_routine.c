@@ -17,6 +17,8 @@ void	*coder_routine(void *arg)
 	t_coder	*coder;
 
 	coder = (t_coder *)arg;
+	if (coder->id % 2 == 0)
+		usleep(1000);
 	while (!sim_is_stopped(coder->sim))
 	{
 		if (!do_compile(coder) || !do_debug(coder) || !do_refactor(coder))
